@@ -1,6 +1,6 @@
 from torch import BoolTensor, LongTensor, nn
 
-from neural_tokenizers.types_ import SegmentationOutput, ScoredTokenIds, SegmentInfo
+from neural_tokenizers.types_ import SegmentationOutput
 
 
 class Segmenter:
