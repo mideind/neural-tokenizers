@@ -1,6 +1,7 @@
 from dataclasses import dataclass
+
 import torch
-from torch import FloatTensor, LongTensor, BoolTensor, nn
+from torch import BoolTensor, FloatTensor, LongTensor, nn
 from transformers import MistralForCausalLM
 
 from neural_tokenizers.base import Segmenter
@@ -9,6 +10,8 @@ from neural_tokenizers.types_ import ScoredTokenIds, SegmentationOutput
 
 @dataclass
 class TextSegmentation:
+    """A segmentation of a string into segments of characters/tokens."""
+
     text: str
     chars: list[str]
     char_lens: LongTensor
@@ -22,6 +25,15 @@ class TextSegmentation:
 
     @classmethod
     def from_string(cls, text: str) -> "TextSegmentation":
+        """Create a TextSegmentation from a string.
+
+        Args:
+            text: str
+
+        Returns:
+            TextSegmentation
+
+        """
         model_inputs = string_to_model_inputs(text)
         # ∷ (B × L)
         byte_ids = model_inputs["input_ids"]
@@ -40,6 +52,15 @@ class TextSegmentation:
 
 
 def string_to_model_inputs(text: str) -> dict[str, torch.Tensor]:
+    """Convert a string into a model input (for transformers-compatible models).
+
+    Args:
+        text: str
+
+    Returns:
+        dict[str, torch.Tensor]
+
+    """
     ids = torch.tensor(list(text.encode("utf-8")), dtype=torch.long).unsqueeze(0)
     length = len(ids)
     causal_mask_bool = torch.tril(torch.ones(length, length, dtype=torch.bool))
@@ -51,16 +72,27 @@ def string_to_model_inputs(text: str) -> dict[str, torch.Tensor]:
 
 
 class MistralSegmenter(Segmenter):
+    """A neural tokenizer that segments strings into segments of characters/tokens."""
+
     def __init__(self, model: nn.Module):
+        """Initialize a MistralSegmenter.
+
+        Args:
+            model: nn.Module
+
+        """
         super().__init__(model)
         # assigns self.model
 
     def segment_string(self, text: str) -> SegmentationOutput:
-        """
+        """Segment a string into segments using a neural tokenizer.
+
         Args:
             text: str
 
-        Returns:?
+        Returns:
+            SegmentationOutput
+
         """
         segmentation = TextSegmentation.from_string(text)
 
@@ -107,7 +139,8 @@ class MistralSegmenter(Segmenter):
     def score(
         self, input_ids: LongTensor, attention_mask: BoolTensor, ignore_leading_token: bool = True
     ) -> ScoredTokenIds:
-        """
+        """Score a batch of sequences (of token ids).
+
         Args:
             input_ids:       LongTensor(B × L)
             attention_mask:  BoolTensor(B × L)
@@ -115,6 +148,7 @@ class MistralSegmenter(Segmenter):
 
         Returns:
             ScoredIds(ids: LongTensor(B × L), scores: FloatTensor(B × L))
+
         """
         model_out = self.model(input_ids=input_ids, attention_mask=attention_mask)
 
@@ -149,12 +183,22 @@ class MistralSegmenter(Segmenter):
             token_entropies=entropy_per_token,
         )
 
-    def score_string(self, text: str) -> SegmentationOutput:
+    def score_string(self, text: str) -> ScoredTokenIds:
+        """Score a string.
+
+        Args:
+            text: str
+
+        Returns:
+            ScoredTokenIds
+
+        """
         model_in = string_to_model_inputs(text)
         return self.score(**model_in)
 
     def segment_string_batched(self, texts: list[str]) -> tuple[LongTensor, LongTensor, BoolTensor]:
-        """
+        """Segment a batch of strings into segments.
+
         L₁: length in bytes
         L₂: length in segments
         L₃: (max) length of segment in bytes
@@ -166,14 +210,32 @@ class MistralSegmenter(Segmenter):
             segment_lengths:           LongTensor(B×L₂)
             segment_starts:            LongTensor(B×L₂)
             output_mask:               BoolTensor(B×L₂)
+
         """
         pass
 
     def tokenize(self, text: str) -> list[list[str]]:
-        # legacy
-        pass
+        """Tokenize a string.
+
+        Args:
+            text: str
+
+        Returns:
+            list[list[str]]
+
+        """
+        raise NotImplementedError
 
     @classmethod
     def from_path(cls, path: str) -> "MistralSegmenter":
+        """Create a MistralSegmenter from a path to a model checkpoint (locally or Huggingface).
+
+        Args:
+            path: str
+
+        Returns:
+            MistralSegmenter
+
+        """
         model = MistralForCausalLM.from_pretrained(path, device_map="auto")
         return cls(model)
