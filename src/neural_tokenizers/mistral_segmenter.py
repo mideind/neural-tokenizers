@@ -5,7 +5,7 @@ from torch import BoolTensor, FloatTensor, LongTensor, nn
 from transformers import MistralForCausalLM
 
 from neural_tokenizers.base import Segmenter
-from neural_tokenizers.types_ import ScoredTokenIds, SegmentationOutput
+from neural_tokenizers.types_ import BatchedSegmentationOutput, ScoredTokenIds, Segment
 
 
 @dataclass
@@ -81,10 +81,10 @@ class MistralSegmenter(Segmenter):
             model: nn.Module
 
         """
+        # super constructor sets self.model
         super().__init__(model)
-        # assigns self.model
 
-    def segment_string(self, text: str) -> SegmentationOutput:
+    def segmentize_text(self, text: str) -> list[Segment]:
         """Segment a string into segments using a neural tokenizer.
 
         Args:
@@ -96,7 +96,7 @@ class MistralSegmenter(Segmenter):
         """
         segmentation = TextSegmentation.from_string(text)
 
-        scored_ids = self.score(
+        scored_ids = self.score_ids(
             input_ids=segmentation.byte_ids, attention_mask=segmentation.attention_mask
         )
         segmentation.byte_surprisals = scored_ids.token_surprisals
@@ -106,38 +106,31 @@ class MistralSegmenter(Segmenter):
         # foo = determine_segment_boundaries(segmentation)
         return segmentation
 
-    # def _segment_single(self, input_bytes: list[int]) -> list[dict]:
-    #     """
-    #     Args:
-    #         input_bytes:    list[int]
+    def segmentize(
+        self, input_bytes: LongTensor, input_mask: BoolTensor, padding_value: int
+    ) -> BatchedSegmentationOutput:
+        """Segment a batch of text strings (in byte representation) into segments.
 
-    #     Returns:
-    #         segment_info:  list[{start: int, length: int}]
-    #     """
-    #     raise NotImplementedError
+        L₁: length in bytes
+        L₂: length in segments
+        L₃: (max) length of segment in bytes
 
-    # def _segment_batched(
-    #     self, input_bytes: LongTensor, input_mask: BoolTensor, padding_value: int | None = None
-    # ) -> tuple[LongTensor, LongTensor, BoolTensor]:
-    #     """
-    #     L₁: length in bytes
-    #     L₂: length in segments
-    #     L₃: (max) length of segment in bytes
+        Args:
+            input_bytes:               LongTensor(B×L₁)
+            input_mask:                BoolTensor(B×L₁)
+            padding_value:             int
 
-    #     Args:
-    #         input_bytes:               LongTensor(B×L₁)
-    #         input_mask:                BoolTensor(B×L₁)
-    #         padding_value:             int | None
+        Returns:
+            BatchedSegmentationOutput
 
-    #     Returns
-    #         segment_lengths:           LongTensor(B×L₂)
-    #         segment_starts:            LongTensor(B×L₂)
-    #         output_mask:               BoolTensor(B×L₂)
-    #     """
-    #     pass
+        """
+        raise NotImplementedError
 
-    def score(
-        self, input_ids: LongTensor, attention_mask: BoolTensor, ignore_leading_token: bool = True
+    def score_ids(
+        self,
+        input_ids: LongTensor,
+        attention_mask: BoolTensor,
+        ignore_leading_token: bool = True,  # noqa: FBT001, FBT002
     ) -> ScoredTokenIds:
         """Score a batch of sequences (of token ids).
 
@@ -194,37 +187,7 @@ class MistralSegmenter(Segmenter):
 
         """
         model_in = string_to_model_inputs(text)
-        return self.score(**model_in)
-
-    def segment_string_batched(self, texts: list[str]) -> tuple[LongTensor, LongTensor, BoolTensor]:
-        """Segment a batch of strings into segments.
-
-        L₁: length in bytes
-        L₂: length in segments
-        L₃: (max) length of segment in bytes
-
-        Args:
-            texts: list[str]
-
-        Returns:
-            segment_lengths:           LongTensor(B×L₂)
-            segment_starts:            LongTensor(B×L₂)
-            output_mask:               BoolTensor(B×L₂)
-
-        """
-        pass
-
-    def tokenize(self, text: str) -> list[list[str]]:
-        """Tokenize a string.
-
-        Args:
-            text: str
-
-        Returns:
-            list[list[str]]
-
-        """
-        raise NotImplementedError
+        return self.score_ids(**model_in)
 
     @classmethod
     def from_path(cls, path: str) -> "MistralSegmenter":

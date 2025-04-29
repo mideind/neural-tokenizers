@@ -3,26 +3,16 @@ from typing import NamedTuple
 from torch import BoolTensor, FloatTensor, LongTensor
 
 
-class ScoredTokenIds(NamedTuple):
-    """Token information with surprisal and entropy scores from a language model."""
+class Segment(NamedTuple):
+    """A segment of a text string."""
 
-    token_ids: LongTensor
-    token_surprisals: FloatTensor
-    token_entropies: FloatTensor
-
-
-class SegmentInfo(NamedTuple):
-    """Output of the segmenter.
-
-    Information about an individual segment.
-    """
-
-    segment_start: int
-    segment_length: int
-    score: float | None
+    start: int
+    length: int
+    score: float
+    text: str
 
 
-class SegmentationOutput(NamedTuple):
+class InnerSegmentationOutput(NamedTuple):
     """Output of the segmenter.
 
     Information about all segments.
@@ -35,3 +25,18 @@ class SegmentationOutput(NamedTuple):
     output_mask: BoolTensor | None
     surprisal: FloatTensor | None
     self_entropy: FloatTensor | None
+
+
+class BatchedSegmentationOutput(NamedTuple):
+    """Offset and length of the segments found by the segmenter in a batch of sequences."""
+
+    offsets: LongTensor
+    lengths: LongTensor
+
+
+class ScoredTokenIds(NamedTuple):
+    """Token information with surprisal and entropy scores from a language model."""
+
+    token_ids: LongTensor
+    token_surprisals: FloatTensor
+    token_entropies: FloatTensor

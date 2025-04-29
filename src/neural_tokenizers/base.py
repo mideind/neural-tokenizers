@@ -1,6 +1,6 @@
 from torch import BoolTensor, LongTensor, nn
 
-from neural_tokenizers.types_ import SegmentationOutput
+from neural_tokenizers.types_ import BatchedSegmentationOutput, Segment
 
 
 class Segmenter:
@@ -15,33 +15,13 @@ class Segmenter:
         """
         self.model = model
 
-    def tokenize(self, text: str) -> SegmentationOutput:
-        """Legacy method.
-
-        Args:
-            text: str
-
-        Returns:
-            list[int]
-
-        """
-        raise NotImplementedError
-
-    def _segment_single(self, input_bytes: list[int]) -> list[dict]:
-        """Segment a single text string (in byte representation) into segments.
-
-        Args:
-            input_bytes:    list[int]
-
-        Returns:
-            segment_info:  list[{start: int, length: int}]
-
-        """
-        raise NotImplementedError
-
-    def _segment_batched(
-        self, input_bytes: LongTensor, input_mask: BoolTensor, padding_value: int
-    ) -> tuple[LongTensor, LongTensor, BoolTensor]:
+    def segmentize(
+        # self, input_ids: LongTensor, attention_mask: BoolTensor
+        self,
+        input_bytes: LongTensor,
+        input_mask: BoolTensor,
+        padding_value: int,
+    ) -> BatchedSegmentationOutput:
         """Segment a batch of text strings (in byte representation) into segments.
 
         L₁: length in bytes
@@ -54,9 +34,21 @@ class Segmenter:
             padding_value:             int
 
         Returns:
-            segment_lengths:           LongTensor(B×L₂)
-            segment_starts:            LongTensor(B×L₂)
-            output_mask:               BoolTensor(B×L₂)
+            BatchedSegmentationOutput
 
         """
         raise NotImplementedError
+        pass
+
+    def segmentize_text(self, text: str) -> list[Segment]:
+        """Segment a single text string into segments.
+
+        Args:
+             text: str
+
+        Returns:
+            list[Segment]
+
+        """
+        raise NotImplementedError
+        pass
