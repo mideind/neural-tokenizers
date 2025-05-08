@@ -1,6 +1,17 @@
+from dataclasses import dataclass
 from typing import NamedTuple
 
 from torch import BoolTensor, FloatTensor, LongTensor
+
+POOLING_METHODS = ["max", "mean", "sum"]
+
+
+@dataclass
+class ModelInputs:
+    """A model input."""
+
+    input_ids: LongTensor
+    attention_mask: FloatTensor
 
 
 class Segment(NamedTuple):
@@ -16,6 +27,10 @@ class InnerSegmentationOutput(NamedTuple):
     """Output of the segmenter.
 
     Information about all segments.
+
+    Note:
+        The surprisal and entropy scores are measured in bits.
+
     """
 
     input_ids: LongTensor
@@ -32,10 +47,17 @@ class BatchedSegmentationOutput(NamedTuple):
 
     offsets: LongTensor
     lengths: LongTensor
+    scores: FloatTensor
+    num_segments: LongTensor
 
 
 class ScoredTokenIds(NamedTuple):
-    """Token information with surprisal and entropy scores from a language model."""
+    """Token information with surprisal and entropy scores from a language model.
+
+    Note:
+        The surprisal and entropy scores are measured in bits.
+
+    """
 
     token_ids: LongTensor
     token_surprisals: FloatTensor
