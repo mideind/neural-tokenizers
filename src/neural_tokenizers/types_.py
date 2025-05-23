@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import NamedTuple
 
+import torch
 from torch import BoolTensor, FloatTensor, LongTensor
 
 POOLING_METHODS = ["max", "mean", "sum"]
@@ -12,6 +13,27 @@ class ModelInputs:
 
     input_ids: LongTensor
     attention_mask: FloatTensor
+
+    @staticmethod
+    def from_string(text: str) -> "ModelInputs":
+        """Convert a string into a model input (for transformers-compatible models).
+
+        Args:
+            text: str
+
+        Returns:
+            ModelInputs
+
+        """
+        ids = torch.tensor(list(text.encode("utf-8")), dtype=torch.long).unsqueeze(0)
+        length = ids.size(1)  # Get length from the created ids tensor
+        causal_mask_bool = torch.tril(torch.ones(length, length, dtype=torch.bool))
+        # ∷ (Batch × Heads × Length × Length), where Batch=1, Heads=1
+        causal_mask_bool = causal_mask_bool.unsqueeze(0).unsqueeze(1)
+        causal_mask_float_additive = torch.zeros_like(
+            causal_mask_bool, dtype=torch.float32
+        ).masked_fill(~causal_mask_bool, -float("inf"))
+        return ModelInputs(input_ids=ids, attention_mask=causal_mask_float_additive)
 
 
 class Segment(NamedTuple):
@@ -62,3 +84,50 @@ class ScoredTokenIds(NamedTuple):
     token_ids: LongTensor
     token_surprisals: FloatTensor
     token_entropies: FloatTensor
+
+
+@dataclass
+class TextScores:
+    """A segmentation of a string into segments of characters/tokens."""
+
+    text: str
+    chars: list[str]
+    char_lens: LongTensor
+    byte_ids: LongTensor
+    attention_mask: FloatTensor | None = (
+        None  # Changed BoolTensor to FloatTensor to match string_to_model_inputs
+    )
+    # character score (composite score)
+    char_scores: FloatTensor | None = None
+    char_surprisals: FloatTensor | None = None
+    char_entropies: FloatTensor | None = None
+    # byte-level information-theoretic scores
+    byte_surprisals: FloatTensor | None = None
+    byte_entropies: FloatTensor | None = None
+
+    @classmethod
+    def from_string(cls, text: str) -> "TextScores":
+        """Create a TextSegmentation from a string.
+
+        Args:
+            text: str
+
+        Returns:
+            TextSegmentation
+
+        """
+        model_inputs = ModelInputs.from_string(text)  # Use the static method
+        # ∷ (B × L)
+        byte_ids = model_inputs.input_ids
+        # ∷ (B × L)
+        attention_mask = model_inputs.attention_mask
+        chars = list(text)
+        # ∷ (L) → (B × L)
+        char_lens = torch.tensor([len(c.encode("utf-8")) for c in chars]).unsqueeze(0)
+        return cls(
+            text=text,
+            chars=chars,
+            char_lens=char_lens,
+            byte_ids=byte_ids,
+            attention_mask=attention_mask,
+        )
