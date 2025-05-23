@@ -26,7 +26,7 @@ class ModelInputs:
 
         """
         ids = torch.tensor(list(text.encode("utf-8")), dtype=torch.long).unsqueeze(0)
-        length = ids.size(1)  # Get length from the created ids tensor
+        length = ids.size(1)
         causal_mask_bool = torch.tril(torch.ones(length, length, dtype=torch.bool))
         # ∷ (Batch × Heads × Length × Length), where Batch=1, Heads=1
         causal_mask_bool = causal_mask_bool.unsqueeze(0).unsqueeze(1)
@@ -94,9 +94,7 @@ class TextScores:
     chars: list[str]
     char_lens: LongTensor
     byte_ids: LongTensor
-    attention_mask: FloatTensor | None = (
-        None  # Changed BoolTensor to FloatTensor to match string_to_model_inputs
-    )
+    attention_mask: BoolTensor | None = None
     # character score (composite score)
     char_scores: FloatTensor | None = None
     char_surprisals: FloatTensor | None = None
@@ -116,7 +114,7 @@ class TextScores:
             TextSegmentation
 
         """
-        model_inputs = ModelInputs.from_string(text)  # Use the static method
+        model_inputs = ModelInputs.from_string(text)
         # ∷ (B × L)
         byte_ids = model_inputs.input_ids
         # ∷ (B × L)
